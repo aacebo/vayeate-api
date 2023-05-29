@@ -46,6 +46,16 @@ func (self *SyncMap[K, V]) Map() map[K]V {
 	return self.content
 }
 
+func (self *SyncMap[K, V]) Slice() []V {
+	arr := []V{}
+
+	for _, v := range self.content {
+		arr = append(arr, v)
+	}
+
+	return arr
+}
+
 func (self *SyncMap[K, V]) Iterate(callback func(k K, v V)) {
 	self.mu.Lock()
 

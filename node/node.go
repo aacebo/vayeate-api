@@ -60,8 +60,8 @@ func (self *Node) Close() {
 	self.listener.Close()
 }
 
-func (self *Node) GetSockets() map[string]*Socket {
-	return self.sockets.Map()
+func (self *Node) GetSockets() []*Socket {
+	return self.sockets.Slice()
 }
 
 func (self *Node) onConnection(conn net.Conn) {
