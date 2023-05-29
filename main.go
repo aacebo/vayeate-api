@@ -17,14 +17,17 @@ import (
 
 func main() {
 	log := logger.New("vayeate")
-	n, err := node.New(common.GetEnv("VAYEATE_SOCKET_PORT", "6789"))
+	n, err := node.New(
+		common.GetEnv("VAYEATE_SOCKET_PORT", "6789"),
+		common.GetEnv("VAYEATE_PEER_PORT", "9876"),
+	)
 
 	if err != nil {
 		log.Error(err)
 	}
 
 	defer n.Close()
-	go n.Listen()
+	n.Listen()
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestID)

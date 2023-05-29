@@ -1,4 +1,4 @@
-package node
+package socket
 
 import (
 	"bufio"
@@ -25,7 +25,7 @@ type Socket struct {
 	conn      net.Conn
 }
 
-func NewSocket(conn net.Conn) *Socket {
+func New(conn net.Conn) *Socket {
 	id := uuid.NewString()
 	reader := bufio.NewReader(conn)
 	now := time.Now()
@@ -39,6 +39,10 @@ func (self *Socket) Close() {
 	self.closed = true
 	self.conn.Close()
 	self.pingTimer.Stop()
+}
+
+func (self *Socket) Closed() bool {
+	return self.closed
 }
 
 func (self *Socket) GetRemoteAddress() string {
