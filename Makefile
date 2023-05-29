@@ -7,7 +7,7 @@ build:
 clean_build: clean build
 
 run:
-	go run main.go
+	go run ./...
 
 fmt:
 	gofmt -w .
