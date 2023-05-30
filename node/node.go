@@ -20,7 +20,6 @@ type Node struct {
 
 	username       string
 	password       string
-	entryAddress   string
 	log            *logger.Logger
 	socketListener net.Listener
 	peerListener   net.Listener
@@ -28,7 +27,7 @@ type Node struct {
 	peers          sync.SyncMap[string, *peer.Peer]
 }
 
-func New(socketPort string, peerPort string, username string, password string, entryAddress string) (*Node, error) {
+func New(socketPort string, peerPort string, username string, password string) (*Node, error) {
 	id := uuid.NewString()
 	sp, err := strconv.Atoi(socketPort)
 
@@ -49,41 +48,17 @@ func New(socketPort string, peerPort string, username string, password string, e
 	}
 
 	peerListener, err := net.Listen("tcp", fmt.Sprintf(":%d", pp))
-
 	self := Node{
 		ID:             id,
 		SocketPort:     sp,
 		PeerPort:       pp,
 		username:       username,
 		password:       password,
-		entryAddress:   entryAddress,
 		log:            logger.New(fmt.Sprintf("vayeate:node:%s", id)),
 		socketListener: socketListener,
 		peerListener:   peerListener,
 		sockets:        sync.NewSyncMap[string, *socket.Socket](),
 		peers:          sync.NewSyncMap[string, *peer.Peer](),
-	}
-
-	if entryAddress != "" {
-		// connect to other nodes
-		p, addresses, err := peer.Connect(self.ID, self.username, self.password, self.entryAddress)
-
-		if err != nil {
-			return nil, err
-		}
-
-		self.peers.Set(p.ID, p)
-
-		for _, addr := range addresses {
-			p, _, err = peer.Connect(self.ID, self.username, self.password, addr)
-
-			if err != nil {
-				self.log.Warn(err)
-				continue
-			}
-
-			self.peers.Set(p.ID, p)
-		}
 	}
 
 	return &self, nil
@@ -92,6 +67,29 @@ func New(socketPort string, peerPort string, username string, password string, e
 func (self *Node) Listen() {
 	go self.listenSockets()
 	go self.listenPeers()
+}
+
+func (self *Node) Discover(entryAddress string) error {
+	p, addresses, err := peer.Connect(self.ID, self.username, self.password, entryAddress)
+
+	if err != nil {
+		return err
+	}
+
+	self.peers.Set(p.ID, p)
+
+	for _, addr := range addresses {
+		p, _, err = peer.Connect(self.ID, self.username, self.password, addr)
+
+		if err != nil {
+			self.log.Warn(err)
+			continue
+		}
+
+		self.peers.Set(p.ID, p)
+	}
+
+	return nil
 }
 
 func (self *Node) Close() {

@@ -22,11 +22,20 @@ func main() {
 		common.GetEnv("VAYEATE_PEER_PORT", "9876"),
 		common.GetEnv("VAYEATE_USERNAME", "admin"),
 		common.GetEnv("VAYEATE_PASSWORD", "admin"),
-		common.GetEnv("VAYEATE_ENTRY_ADDRESS", ""),
 	)
 
 	if err != nil {
 		log.Error(err)
+		return
+	}
+
+	if eaddr := common.GetEnv("VAYEATE_ENTRY_ADDRESS", ""); eaddr != "" {
+		err = n.Discover(eaddr)
+
+		if err != nil {
+			log.Error(err)
+			return
+		}
 	}
 
 	defer n.Close()
