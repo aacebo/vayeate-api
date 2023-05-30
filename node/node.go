@@ -218,8 +218,6 @@ func (self *Node) onPeerMessage(p *peer.Peer, m *peer.Message) error {
 
 	if m.IsPing() {
 		err = p.Write(peer.NewPongMessage(self.ID, self.username, self.password))
-	} else if m.IsOpen() {
-		err = p.Write(peer.NewOpenSuccessMessage(self.ID, self.username, self.password))
 	}
 
 	return err
