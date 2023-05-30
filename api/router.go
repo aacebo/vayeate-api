@@ -3,6 +3,7 @@ package api
 import (
 	"net/http"
 	"time"
+	"vayeate-api/api/peers"
 	"vayeate-api/api/sockets"
 	"vayeate-api/node"
 
@@ -23,6 +24,7 @@ func NewRouter(n *node.Node) *chi.Mux {
 
 	r.Route("/v1", func(r chi.Router) {
 		sockets.NewRouter(r, n)
+		peers.NewRouter(r, n)
 	})
 
 	return r

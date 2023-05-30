@@ -20,6 +20,9 @@ func main() {
 	n, err := node.New(
 		common.GetEnv("VAYEATE_SOCKET_PORT", "6789"),
 		common.GetEnv("VAYEATE_PEER_PORT", "9876"),
+		common.GetEnv("VAYEATE_USERNAME", "admin"),
+		common.GetEnv("VAYEATE_PASSWORD", "admin"),
+		common.GetEnv("VAYEATE_ENTRY_ADDRESS", ""),
 	)
 
 	if err != nil {

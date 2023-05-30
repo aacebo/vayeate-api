@@ -50,7 +50,7 @@ func (self *Socket) GetRemoteAddress() string {
 }
 
 func (self *Socket) Read() (*Message, error) {
-	f, err := DecodeMessage(self.reader)
+	m, err := DecodeMessage(self.reader)
 
 	if err == io.EOF {
 		return nil, nil
@@ -61,7 +61,7 @@ func (self *Socket) Read() (*Message, error) {
 	}
 
 	self.pingTimer.Reset(timeout)
-	return f, nil
+	return m, nil
 }
 
 func (self *Socket) Write(m *Message) error {

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"time"
 	"vayeate-api/logger"
 	"vayeate-api/peer"
 	"vayeate-api/socket"
@@ -17,6 +18,9 @@ type Node struct {
 	SocketPort int
 	PeerPort   int
 
+	username       string
+	password       string
+	entryAddress   string
 	log            *logger.Logger
 	socketListener net.Listener
 	peerListener   net.Listener
@@ -24,7 +28,7 @@ type Node struct {
 	peers          sync.SyncMap[string, *peer.Peer]
 }
 
-func New(socketPort string, peerPort string) (*Node, error) {
+func New(socketPort string, peerPort string, username string, password string, entryAddress string) (*Node, error) {
 	id := uuid.NewString()
 	sp, err := strconv.Atoi(socketPort)
 
@@ -50,11 +54,18 @@ func New(socketPort string, peerPort string) (*Node, error) {
 		ID:             id,
 		SocketPort:     sp,
 		PeerPort:       pp,
+		username:       username,
+		password:       password,
+		entryAddress:   entryAddress,
 		log:            logger.New(fmt.Sprintf("vayeate:node:%s", id)),
 		socketListener: socketListener,
 		peerListener:   peerListener,
 		sockets:        sync.NewSyncMap[string, *socket.Socket](),
 		peers:          sync.NewSyncMap[string, *peer.Peer](),
+	}
+
+	if entryAddress != "" {
+		// connect to other nodes
 	}
 
 	return &self, nil
@@ -132,25 +143,84 @@ func (self *Node) onSocketConnection(conn net.Conn) {
 
 		if m.IsClose() {
 			return
-		} else if m.IsPing() {
-			self.onPing(s)
 		} else {
-			self.onSocketMessage(s, m)
+			err = self.onSocketMessage(s, m)
+
+			if err != nil {
+				return
+			}
 		}
 	}
 }
 
 func (self *Node) onPeerConnection(conn net.Conn) {
-}
-
-func (self *Node) onPing(s *socket.Socket) {
-	err := s.Write(socket.NewPongMessage())
+	p, err := peer.FromConnection(self.ID, self.username, self.password, conn)
 
 	if err != nil {
 		self.log.Warn(err)
+		return
+	}
+
+	self.peers.Set(p.ID, p)
+	pingTimer := time.AfterFunc(30*time.Second, func() {
+		err := p.Write(peer.NewPingMessage(p.ID, self.username, self.password))
+
+		if err != nil {
+			self.log.Warn(err)
+		}
+	})
+
+	defer func() {
+		p.Close()
+		pingTimer.Stop()
+		self.peers.Del(p.ID)
+	}()
+
+	for {
+		if p.Closed() {
+			return
+		}
+
+		m, err := p.Read()
+
+		if m == nil || err != nil {
+			if err != nil {
+				self.log.Warn(err)
+
+				if err == peer.UnauthorizedError {
+					return
+				}
+			}
+
+			continue
+		}
+
+		err = self.onPeerMessage(p, m)
+
+		if err != nil {
+			return
+		}
 	}
 }
 
-func (self *Node) onSocketMessage(s *socket.Socket, m *socket.Message) {
+func (self *Node) onSocketMessage(s *socket.Socket, m *socket.Message) error {
+	var err error
 
+	if m.IsPing() {
+		err = s.Write(socket.NewPongMessage())
+	}
+
+	return err
+}
+
+func (self *Node) onPeerMessage(p *peer.Peer, m *peer.Message) error {
+	var err error
+
+	if m.IsPing() {
+		err = p.Write(peer.NewPongMessage(self.ID, self.username, self.password))
+	} else if m.IsOpen() {
+		err = p.Write(peer.NewOpenSuccessMessage(self.ID, self.username, self.password))
+	}
+
+	return err
 }

@@ -2,168 +2,109 @@ package peer
 
 import (
 	"bufio"
-	"errors"
-	"io"
-	"strconv"
+	"bytes"
+	"encoding/gob"
 )
 
 type OpCode uint8
 
 const (
-	CLOSE    OpCode = 0 // <code::>
-	PING     OpCode = 1 // <code::>
-	PONG     OpCode = 2 // <code::>
-	ASSERT   OpCode = 3 // <code:subject:>
-	PRODUCE  OpCode = 4 // <code:subject:body>
-	CONSUME  OpCode = 5 // <code:subject:>
-	ACK      OpCode = 6 // <code:subject:>
-	DELEGATE OpCode = 7 // <code:subject:body>
+	OPEN         OpCode = 0
+	OPEN_SUCCESS OpCode = 1
+	PING         OpCode = 2
+	PONG         OpCode = 3
+	ASSERT       OpCode = 4
+	PRODUCE      OpCode = 5
+	ACK          OpCode = 6
 )
 
-const (
-	START     = byte('<') // start byte
-	END       = byte('>') // end byte
-	DELIMITER = byte(':') // slice delimiter
-)
+type MessageHeaders struct {
+	FromID   string
+	Username string
+	Password string
+}
 
-var InvalidFormatError = errors.New("invalid message format")
-
-// A Message comprised of many bytes, utilizing a custom Netstring format
-// ex. <code:subject:body>
-// https://cr.yp.to/proto/netstrings.txt
 type Message struct {
 	Code    OpCode
+	Headers MessageHeaders
 	Subject []byte
 	Body    []byte
 }
 
-func NewMessage(code OpCode, subject []byte, body []byte) *Message {
-	return &Message{code, subject, body}
+func NewOpenMessage(id string, username string, password string) *Message {
+	return &Message{
+		OPEN,
+		MessageHeaders{
+			id,
+			username,
+			password,
+		},
+		nil,
+		nil,
+	}
 }
 
-func NewCloseMessage() *Message {
-	return &Message{CLOSE, []byte{}, []byte{}}
+func NewOpenSuccessMessage(id string, username string, password string) *Message {
+	return &Message{
+		OPEN_SUCCESS,
+		MessageHeaders{
+			id,
+			username,
+			password,
+		},
+		nil,
+		nil,
+	}
 }
 
-func NewPingMessage() *Message {
-	return &Message{PING, []byte{}, []byte{}}
+func NewPingMessage(id string, username string, password string) *Message {
+	return &Message{
+		PING,
+		MessageHeaders{
+			id,
+			username,
+			password,
+		},
+		nil,
+		nil,
+	}
 }
 
-func NewPongMessage() *Message {
-	return &Message{PONG, []byte{}, []byte{}}
-}
-
-func NewAssertMessage(subject []byte) *Message {
-	return &Message{ASSERT, subject, []byte{}}
-}
-
-func NewProduceMessage(subject []byte, body []byte) *Message {
-	return &Message{PRODUCE, subject, body}
-}
-
-func NewConsumeMessage(subject []byte) *Message {
-	return &Message{CONSUME, subject, []byte{}}
-}
-
-func NewAckMessage(subject []byte) *Message {
-	return &Message{ACK, subject, []byte{}}
-}
-
-func NewDelegateMessage(subject []byte, body []byte) *Message {
-	return &Message{DELEGATE, subject, body}
+func NewPongMessage(id string, username string, password string) *Message {
+	return &Message{
+		PONG,
+		MessageHeaders{
+			id,
+			username,
+			password,
+		},
+		nil,
+		nil,
+	}
 }
 
 func DecodeMessage(reader *bufio.Reader) (*Message, error) {
-	subject := []byte{}
-	body := []byte{}
-	b, err := reader.ReadByte()
+	var self Message
+	decoder := gob.NewDecoder(reader)
+	err := decoder.Decode(&self)
 
 	if err != nil {
 		return nil, err
 	}
 
-	if b != START {
-		return nil, InvalidFormatError
-	}
-
-	// read opcode
-	b, err = reader.ReadByte()
-
-	if err != nil {
-		return nil, err
-	}
-
-	t, err := strconv.Atoi(string(b))
-
-	if err != nil {
-		return nil, err
-	}
-
-	code := OpCode(t)
-	b, err = reader.ReadByte()
-
-	if err != nil {
-		return nil, err
-	}
-
-	if b != DELIMITER {
-		return nil, InvalidFormatError
-	}
-
-	// read subject
-	for {
-		b, err := reader.ReadByte()
-
-		if err == io.EOF {
-			return nil, InvalidFormatError
-		}
-
-		if err != nil {
-			return nil, err
-		}
-
-		if b == DELIMITER {
-			break
-		}
-
-		subject = append(subject, b)
-	}
-
-	// read body
-	for {
-		b, err := reader.ReadByte()
-
-		if err == io.EOF {
-			return nil, InvalidFormatError
-		}
-
-		if err != nil {
-			return nil, err
-		}
-
-		if b == END {
-			break
-		}
-
-		body = append(body, b)
-	}
-
-	return &Message{code, subject, body}, nil
+	return &self, nil
 }
 
-func (self *Message) Encode() []byte {
-	data := []byte{}
-	code := []byte(strconv.Itoa(int(self.Code)))
+func (self *Message) Encode() ([]byte, error) {
+	var buf bytes.Buffer
+	encoder := gob.NewEncoder(&buf)
+	err := encoder.Encode(self)
 
-	data = append(data, START)
-	data = append(data, code...)
-	data = append(data, DELIMITER)
-	data = append(data, self.Subject...)
-	data = append(data, DELIMITER)
-	data = append(data, self.Body...)
-	data = append(data, END)
+	if err != nil {
+		return nil, err
+	}
 
-	return data
+	return buf.Bytes(), nil
 }
 
 func (self *Message) GetSubject() string {
@@ -174,8 +115,12 @@ func (self *Message) GetBody() string {
 	return string(self.Body)
 }
 
-func (self *Message) IsClose() bool {
-	return self.Code == CLOSE
+func (self *Message) IsOpen() bool {
+	return self.Code == OPEN
+}
+
+func (self *Message) IsOpenSuccess() bool {
+	return self.Code == OPEN_SUCCESS
 }
 
 func (self *Message) IsPing() bool {
@@ -194,14 +139,6 @@ func (self *Message) IsProduce() bool {
 	return self.Code == PRODUCE
 }
 
-func (self *Message) IsConsume() bool {
-	return self.Code == CONSUME
-}
-
 func (self *Message) IsAck() bool {
 	return self.Code == ACK
-}
-
-func (self *Message) IsDelegate() bool {
-	return self.Code == DELEGATE
 }

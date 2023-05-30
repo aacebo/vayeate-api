@@ -26,7 +26,7 @@ const (
 	DELIMITER = byte(':') // slice delimiter
 )
 
-var InvalidFormatError = errors.New("invalid message format")
+var InvalidFormatError = errors.New("socket: invalid message format")
 
 // A Message comprised of many bytes, utilizing a custom Netstring format
 // ex. <code:subject:body>

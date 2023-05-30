@@ -6,8 +6,11 @@ A distributed peer-to-peer message bus
 
 > all environment variable names should be prefixed with `VAYEATE_`
 
-| Name			          | Type	| Default |
-|-------------------------|---------|---------|
-| `SOCKET_PORT`           | `int`	| `6789`  |
-| `PEER_PORT`             | `int`   | `9876`  |
-| `API_PORT`			  | `int`	| `3000`  |
+| Name			          | Type	 | Default  |
+|-------------------------|----------|----------|
+| `SOCKET_PORT`           | `int`	 | `6789`   |
+| `PEER_PORT`             | `int`    | `9876`   |
+| `API_PORT`			  | `int`	 | `3000`   |
+| `USERNAME`			  | `string` | `admin`  |
+| `PASSWORD`			  | `string` | `admin`  |
+| `ENTRY_ADDRESS`		  | `string` |			|
