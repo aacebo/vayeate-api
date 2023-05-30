@@ -66,6 +66,24 @@ func New(socketPort string, peerPort string, username string, password string, e
 
 	if entryAddress != "" {
 		// connect to other nodes
+		p, addresses, err := peer.Connect(self.ID, self.username, self.password, self.entryAddress)
+
+		if err != nil {
+			return nil, err
+		}
+
+		self.peers.Set(p.ID, p)
+
+		for _, addr := range addresses {
+			p, _, err = peer.Connect(self.ID, self.username, self.password, addr)
+
+			if err != nil {
+				self.log.Warn(err)
+				continue
+			}
+
+			self.peers.Set(p.ID, p)
+		}
 	}
 
 	return &self, nil
@@ -154,7 +172,13 @@ func (self *Node) onSocketConnection(conn net.Conn) {
 }
 
 func (self *Node) onPeerConnection(conn net.Conn) {
-	p, err := peer.FromConnection(self.ID, self.username, self.password, conn)
+	addresses := []string{}
+
+	for _, peer := range self.peers.Map() {
+		addresses = append(addresses, peer.GetRemoteAddress())
+	}
+
+	p, err := peer.FromConnection(self.ID, self.username, self.password, addresses, conn)
 
 	if err != nil {
 		self.log.Warn(err)

@@ -2,6 +2,8 @@ package peer
 
 import (
 	"bufio"
+	"bytes"
+	"encoding/gob"
 	"errors"
 	"fmt"
 	"io"
@@ -27,7 +29,7 @@ type Peer struct {
 	conn      net.Conn
 }
 
-func FromConnection(nodeId string, username string, password string, conn net.Conn) (*Peer, error) {
+func FromConnection(nodeId string, username string, password string, peerAddresses []string, conn net.Conn) (*Peer, error) {
 	reader := bufio.NewReader(conn)
 	now := time.Now()
 	self := Peer{"", now, false, false, nil, nil, reader, conn}
@@ -40,15 +42,21 @@ func FromConnection(nodeId string, username string, password string, conn net.Co
 
 	self.ID = m.Headers.FromID
 	self.log = logger.New(fmt.Sprintf("vayeate:peer:%s", self.ID))
-	err = self.Write(NewOpenSuccessMessage(nodeId, username, password))
-	return &self, err
-}
-
-func Connect(nodeId string, username string, password string, address string) (*Peer, error) {
-	conn, err := net.Dial("tcp", address)
+	m, err = NewOpenSuccessMessage(nodeId, username, password, peerAddresses)
 
 	if err != nil {
 		return nil, err
+	}
+
+	err = self.Write(m)
+	return &self, err
+}
+
+func Connect(nodeId string, username string, password string, address string) (*Peer, []string, error) {
+	conn, err := net.Dial("tcp", address)
+
+	if err != nil {
+		return nil, nil, err
 	}
 
 	reader := bufio.NewReader(conn)
@@ -58,18 +66,23 @@ func Connect(nodeId string, username string, password string, address string) (*
 	err = self.Write(NewOpenMessage(nodeId, username, password))
 
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	m, err := self.Read()
 
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	self.ID = m.Headers.FromID
 	self.log = logger.New(fmt.Sprintf("vayeate:peer:%s", self.ID))
-	return &self, nil
+
+	var peerAddresses []string
+	decoder := gob.NewDecoder(bytes.NewBuffer(m.Body))
+	err = decoder.Decode(&peerAddresses)
+
+	return &self, peerAddresses, err
 }
 
 func (self *Peer) Close() {

@@ -44,7 +44,15 @@ func NewOpenMessage(id string, username string, password string) *Message {
 	}
 }
 
-func NewOpenSuccessMessage(id string, username string, password string) *Message {
+func NewOpenSuccessMessage(id string, username string, password string, peerAddresses []string) (*Message, error) {
+	var buf bytes.Buffer
+	encoder := gob.NewEncoder(&buf)
+	err := encoder.Encode(peerAddresses)
+
+	if err != nil {
+		return nil, err
+	}
+
 	return &Message{
 		OPEN_SUCCESS,
 		MessageHeaders{
@@ -53,8 +61,8 @@ func NewOpenSuccessMessage(id string, username string, password string) *Message
 			password,
 		},
 		nil,
-		nil,
-	}
+		buf.Bytes(),
+	}, nil
 }
 
 func NewPingMessage(id string, username string, password string) *Message {
