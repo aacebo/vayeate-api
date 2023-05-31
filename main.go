@@ -51,5 +51,9 @@ func main() {
 	r.Use(cors.AllowAll().Handler)
 	r.Mount("/", api.NewRouter(n))
 
-	http.ListenAndServe(fmt.Sprintf(":%s", common.GetEnv("VAYEATE_API_PORT", "3000")), r)
+	err = http.ListenAndServe(fmt.Sprintf(":%s", common.GetEnv("VAYEATE_API_PORT", "3000")), r)
+
+	if err != nil {
+		log.Error(err)
+	}
 }

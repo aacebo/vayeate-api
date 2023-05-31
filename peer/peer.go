@@ -135,6 +135,14 @@ func (self *Peer) Write(m *Message) error {
 	return err
 }
 
+func (self *Peer) JSON() map[string]any {
+	return map[string]any{
+		"id":         self.ID,
+		"address":    self.conn.RemoteAddr().String(),
+		"started_at": self.StartedAt.String(),
+	}
+}
+
 func onTimeout(self *Peer) func() {
 	return func() {
 		self.Close()

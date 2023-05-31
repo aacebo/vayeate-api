@@ -76,17 +76,18 @@ func (self *Node) Discover(entryAddress string) error {
 		return err
 	}
 
-	self.peers.Set(p.ID, p)
+	p.Close()
+	addresses = append(addresses, entryAddress)
 
 	for _, addr := range addresses {
-		p, _, err = peer.Connect(self.ID, self.username, self.password, addr)
+		conn, err := net.Dial("tcp", addr)
 
 		if err != nil {
 			self.log.Warn(err)
 			continue
 		}
 
-		self.peers.Set(p.ID, p)
+		go self.onPeerConnection(conn)
 	}
 
 	return nil
@@ -184,12 +185,16 @@ func (self *Node) onPeerConnection(conn net.Conn) {
 	}
 
 	self.peers.Set(p.ID, p)
-	pingTimer := time.AfterFunc(30*time.Second, func() {
+
+	var pingTimer *time.Timer
+	pingTimer = time.AfterFunc(5*time.Second, func() {
 		err := p.Write(peer.NewPingMessage(p.ID, self.username, self.password))
 
 		if err != nil {
 			self.log.Warn(err)
 		}
+
+		pingTimer.Reset(30 * time.Second)
 	})
 
 	defer func() {
@@ -237,6 +242,8 @@ func (self *Node) onSocketMessage(s *socket.Socket, m *socket.Message) error {
 
 func (self *Node) onPeerMessage(p *peer.Peer, m *peer.Message) error {
 	var err error
+
+	self.log.Infoln(*m)
 
 	if m.IsPing() {
 		err = p.Write(peer.NewPongMessage(self.ID, self.username, self.password))
